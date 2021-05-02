@@ -1,9 +1,10 @@
 *-----------------------------------------------------------
-* Title      : 68k Homebrew ROM Monitor
-* Written by : Hayden Kroepfl (ChartreuseK)
-* Date       : August 24th 2015
-* Description: A simple ROM monitor for my homebrew 68k
-*              breadboard computer.
+* Title      : 68k Homebrew RAM Monitor for MC68EZ328 DragonOne SBC
+* Modified by : Kazuhiro Ouchi (@kanpapa)  May 2 2021
+* Original Written by : Hayden Kroepfl (ChartreuseK)
+* Original Date       : August 24th 2015
+* Description: A simple RAM monitor for my homebrew 68k(MC68EZ328)
+*              DragonOne single board computer.
 *-----------------------------------------------------------
 *
 * To make this responsive to different terminal widths we need to change the number of bytes printed
@@ -38,23 +39,23 @@ MAX_LINE_LENGTH     equ     80
 *********************************
 * 68681 Duart Register Addresses
 *
-DUART equ $1C0000       * Base Addr of DUART
-MRA   equ DUART+0       * Mode Register A           (R/W)
-SRA   equ DUART+2       * Status Register A         (r)
-CSRA  equ DUART+2       * Clock Select Register A   (w)
-CRA   equ DUART+4       * Commands Register A       (w)
-RBA   equ DUART+6       * Receiver Buffer A         (r)
-TBA   equ DUART+6       * Transmitter Buffer A      (w)
-ACR   equ DUART+8       * Aux. Control Register     (R/W)
-ISR   equ DUART+10      * Interrupt Status Register (R)
-IMR   equ DUART+10      * Interrupt Mask Register   (W)
-MRB   equ DUART+16      * Mode Register B           (R/W)
-SRB   equ DUART+18      * Status Register B         (R)
-CSRB  equ DUART+18      * Clock Select Register B   (W)
-CRB   equ DUART+20      * Commands Register B       (W)
-RBB   equ DUART+22      * Reciever Buffer B         (R)
-TBB   equ DUART+22      * Transmitter Buffer B      (W)
-IVR   equ DUART+24      * Interrupt Vector Register (R/W)
+;DUART equ $1C0000       * Base Addr of DUART
+;MRA   equ DUART+0       * Mode Register A           (R/W)
+;SRA   equ DUART+2       * Status Register A         (r)
+;CSRA  equ DUART+2       * Clock Select Register A   (w)
+;CRA   equ DUART+4       * Commands Register A       (w)
+;RBA   equ DUART+6       * Receiver Buffer A         (r)
+;TBA   equ DUART+6       * Transmitter Buffer A      (w)
+;ACR   equ DUART+8       * Aux. Control Register     (R/W)
+;ISR   equ DUART+10      * Interrupt Status Register (R)
+;IMR   equ DUART+10      * Interrupt Mask Register   (W)
+;MRB   equ DUART+16      * Mode Register B           (R/W)
+;SRB   equ DUART+18      * Status Register B         (R)
+;CSRB  equ DUART+18      * Clock Select Register B   (W)
+;CRB   equ DUART+20      * Commands Register B       (W)
+;RBB   equ DUART+22      * Reciever Buffer B         (R)
+;TBB   equ DUART+22      * Transmitter Buffer B      (W)
+;IVR   equ DUART+24      * Interrupt Vector Register (R/W)
 
 **********************************
 * ASCII Control Characters
@@ -94,6 +95,7 @@ STACK_START         equ     varLast
     DC.l    STACK_START  * Supervisor stack pointer
     DC.l    START        * Initial PC    
     
+    ORG     $1000
     
 ********************************************
 * Cold start entry point
@@ -613,35 +615,50 @@ printHexByte:
 *****
 * Writes a character to Port A, blocking if not ready (Full buffer)
 *  - Takes a character in D0
+;outChar:
+;    btst    #2, SRA      * Check if transmitter ready bit is set
+;    beq     outChar     
+;    move.b  d0, TBA      * Transmit Character
+;    rts
+
 outChar:
-    btst    #2, SRA      * Check if transmitter ready bit is set
-    beq     outChar     
-    move.b  d0, TBA      * Transmit Character
-    rts
+     move.b  d0,$fffff907
+outChar1:
+     move.w  $fffff906,d0
+     and.w   #$2000,d0
+     beq     outChar1
+     rts
 
 *****
 * Reads in a character from Port A, blocking if none available
 *  - Returns character in D0
 *    
-inChar:
-    btst    #0,  SRA     * Check if receiver ready bit is set
-    beq     inChar
-    move.b  RBA, d0      * Read Character into D0
-    rts
+;inChar:
+;    btst    #0,  SRA     * Check if receiver ready bit is set
+;    beq     inChar
+;    move.b  RBA, d0      * Read Character into D0
+;    rts
     
+inChar:
+     move.w  $FFFFF904,d0
+     and.w   #$2000,d0
+     beq     inChar
+     move.b  $fffff905,d0
+     rts
+
 *****
 * Initializes the 68681 DUART port A as 9600 8N1 
 initDuart:
-    move.b  #$30, CRA       * Reset Transmitter
-    move.b  #$20, CRA       * Reset Reciever
-    move.b  #$10, CRA       * Reset Mode Register Pointer
-    
-    move.b  #$80, ACR       * Baud Rate Set #2
-    move.b  #$BB, CSRA      * Set Tx and Rx rates to 9600
-    move.b  #$93, MRA       * 7-bit, No Parity ($93 for 8-bit, $92 for 7-bit)
-    move.b  #$07, MRA       * Normal Mode, Not CTS/RTS, 1 stop bit
-    
-    move.b  #$05, CRA       * Enable Transmit/Recieve
+;    move.b  #$30, CRA       * Reset Transmitter
+;    move.b  #$20, CRA       * Reset Reciever
+;    move.b  #$10, CRA       * Reset Mode Register Pointer
+;    
+;    move.b  #$80, ACR       * Baud Rate Set #2
+;    move.b  #$BB, CSRA      * Set Tx and Rx rates to 9600
+;    move.b  #$93, MRA       * 7-bit, No Parity ($93 for 8-bit, $92 for 7-bit)
+;    move.b  #$07, MRA       * Normal Mode, Not CTS/RTS, 1 stop bit
+;    
+;    move.b  #$05, CRA       * Enable Transmit/Recieve
     rts    
 
 
@@ -653,7 +670,8 @@ initDuart:
 * Strings
 *
 msgBanner:
-    dc.b CR,LF,'Chartreuse''s 68000 ROM Monitor',CR,LF
+    dc.b CR,LF,'Chartreuse''s 68000 RAM Monitor',CR,LF
+    dc.b       'for MC68EZ328 by kanpapa',CR,LF
     dc.b       '==============================',CR,LF,0
 msgHelp:
     dc.b 'Available Commands: ',CR,LF
