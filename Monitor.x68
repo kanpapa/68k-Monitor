@@ -401,7 +401,7 @@ dumpRAM:
     move.l  d0, d2           * And the number of bytes
  .line:
     move.l  a2, d0          
-    bsr.w   printHexAddr     * Starting address of this line
+    bsr.w   printHexLong     * Starting address of this line (32bit addrs)
     lea     msgColonSpace, a0
     bsr.w   printString
     move.l  #16, d3          * 16 Bytes can be printed on a line
